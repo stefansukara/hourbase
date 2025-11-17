@@ -25,3 +25,7 @@ export interface TimeEntry {
   created_at: string;
   updated_at: string;
 }
+
+export interface TimeEntryWithProject extends TimeEntry {
+  project?: Pick<Project, 'id' | 'name' | 'currency' | 'hourly_rate'> | null;
+}

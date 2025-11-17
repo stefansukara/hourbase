@@ -1,10 +1,10 @@
 import React from 'react';
 import { AuthRoutes } from './AuthRoutes';
 import { AppRoutes } from './AppRoutes';
-import { useUser } from '../features/auth/hooks/useUser';
+import { useAuth } from '../features/auth/hooks/useAuth';
 
 export const RouterProvider: React.FC = () => {
-  const { user, loading } = useUser();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (

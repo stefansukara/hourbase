@@ -5,7 +5,7 @@
 
 ## Features (MVP)
 
-- 🔐 Supabase auth (email / magic link)
+- 🔐 Supabase auth (email magic link)
 - 👥 Projects (clients) with hourly rate and currency
 - 📅 Calendar-style log of hours per day per project
 - 💰 Automatic calculation of earned amount per day / project
@@ -49,7 +49,7 @@
 
 5. **Apply database schema**
    - Open the Supabase SQL editor
-   - Paste and run the SQL found in `supabase/schema.sql` (to be added)
+   - Paste and run the SQL found in `supabase/schema.sql`
 
 6. **Run the dev server**
 
@@ -58,6 +58,44 @@
    ```
 
    Then open the local URL printed in your terminal.
+
+## Deploying to Firebase Hosting
+
+Hourbase is a plain Vite SPA, so shipping it to Firebase Hosting is as simple as deploying the `dist/` folder you get from `npm run build`.
+
+1. Install and log into the Firebase CLI
+
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   ```
+
+2. Initialize or reuse hosting config (only once per repo)
+
+   ```bash
+   firebase init hosting
+   # Select your existing project: portfolio-gatsby
+   # Set "dist" as the public directory, configure as SPA, skip GitHub actions unless you want CI
+   ```
+
+3. Build and deploy
+
+   ```bash
+   npm run build
+   firebase deploy --only hosting
+   ```
+
+The CLI will upload the Vite build artifacts to Firebase and wire them to the project you already have at [portfolio-gatsby](https://console.firebase.google.com/u/0/project/portfolio-gatsby/overview).
+
+## Logging In
+
+Hourbase uses passwordless email links via Supabase Auth:
+
+1. From the login screen, enter your email and click **Email me a magic link**.
+2. Supabase sends you a single-use link; tap it to open the app (desktop or mobile).
+3. Already-signed-in sessions show in the top of the dashboard where you can sign out anytime.
+
+Make sure the domain you deploy from (including Firebase Hosting preview URLs) is added to **Authentication → URL Configuration** inside the Supabase dashboard so magic links redirect correctly.
 
 ## Roadmap
 
@@ -69,13 +107,3 @@
 - Multi-currency support
 - Team accounts (shared projects)
 - Docker compose setup for easy deployment
-
----
-
-If you want, next step I can do is:
-
-1. Implement **auth flow with Supabase** (hooks + context)
-2. Add **project list + create form** wired to Supabase with React Query
-3. Skeleton **CalendarPage** with day view where you can log hours
-
-Tell me what you want **first in Cursor**: 👉 auth, projects CRUD, or time entry calendar?
