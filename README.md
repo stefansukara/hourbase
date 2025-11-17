@@ -13,18 +13,47 @@
 
 ## Tech Stack
 
-- React + TypeScript + Vite
-- Tailwind CSS
-- TanStack React Query
-- Supabase (auth + Postgres)
-- React Router
+### Frontend
+
+- **React 19.2.0** - UI library with modern hooks and concurrent features
+- **TypeScript** - Type-safe development
+- **Vite 7.2.2** - Fast build tool and dev server
+- **React Router 7.9.6** - Client-side routing
+- **Tailwind CSS 3.4.14** - Utility-first CSS framework
+- **Heroicons** - Beautiful SVG icons
+
+### State Management & Data Fetching
+
+- **TanStack React Query 5.90.10** - Server state management, caching, and synchronization
+- **React Context API** - Client-side state (Auth, Toast notifications)
+
+### Backend & Database
+
+- **Supabase** - Backend-as-a-Service
+  - PostgreSQL database
+  - Authentication (email magic links)
+  - Row Level Security (RLS) policies
+  - Real-time subscriptions (ready for future features)
+
+### Development Tools
+
+- **ESLint** - Code linting
+- **Prettier** - Code formatting
+- **TypeScript** - Static type checking
 
 ## Quick Start
 
 1. **Clone the repo**
 
    ```bash
-   git clone https://github.com/<your-username>/hourbase.git
+   git clone https://github.com/stefansukara/hourbase.git
+   cd hourbase
+   ```
+
+   Or if you've forked the repository:
+
+   ```bash
+   git clone https://github.com/your-username/hourbase.git
    cd hourbase
    ```
 
@@ -41,11 +70,20 @@
 
 4. **Configure environment**
 
+   Create a `.env` file in the project root:
+
    ```bash
    cp .env.example .env
    ```
 
-   Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` with your project values.
+   Or create it manually with:
+
+   ```
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+   Fill in the values from your Supabase project dashboard.
 
 5. **Apply database schema**
    - Open the Supabase SQL editor
@@ -59,33 +97,102 @@
 
    Then open the local URL printed in your terminal.
 
-## Deploying to Firebase Hosting
+## Deployment
 
-Hourbase is a plain Vite SPA, so shipping it to Firebase Hosting is as simple as deploying the `dist/` folder you get from `npm run build`.
+Hourbase can be deployed to various hosting platforms. Here are the recommended options:
 
-1. Install and log into the Firebase CLI
+### Option 1: Vercel
+
+**Why Vercel?**
+
+- ✅ **Zero configuration** - Auto-detects Vite/React settings
+- ✅ **GitHub integration** - Automatic deployments on every push
+- ✅ **Preview deployments** - Every PR gets a preview URL
+- ✅ **Free SSL** - Automatic HTTPS certificates
+- ✅ **Global CDN** - Fast worldwide performance
+- ✅ **Environment variables** - Easy management via dashboard
+
+**Quick Deploy via GitHub:**
+
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com) and sign in with GitHub
+3. Click "Add New Project" → Import your repository
+4. Vercel auto-detects Vite settings
+5. Add environment variables in the dashboard:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+6. Click "Deploy" → Done!
+
+**Custom Domain:**
+
+- After deployment, add your custom domain in Vercel dashboard
+- Vercel provides DNS records to add to your registrar
+- SSL is automatically provisioned
+
+**Deploy via CLI:**
+
+```bash
+npx vercel
+```
+
+### Option 2: Firebase Hosting
+
+Perfect if you're already using Firebase or want to host multiple sites in one project.
+
+**Quick Deploy:**
+
+1. **Install Firebase CLI**
 
    ```bash
    npm install -g firebase-tools
    firebase login
    ```
 
-2. Initialize or reuse hosting config (only once per repo)
+2. **Initialize Firebase Hosting**
 
    ```bash
    firebase init hosting
-   # Select your existing project: portfolio-gatsby
-   # Set "dist" as the public directory, configure as SPA, skip GitHub actions unless you want CI
    ```
 
-3. Build and deploy
+   - Select your Firebase project
+   - Set `dist` as the public directory
+   - Configure as a single-page app
+
+3. **Create `.env.production`** with your Supabase credentials:
+
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Build and deploy**
 
    ```bash
    npm run build
-   firebase deploy --only hosting
+   firebase deploy --only hosting:hourbase
    ```
 
-The CLI will upload the Vite build artifacts to Firebase and wire them to the project you already have at [portfolio-gatsby](https://console.firebase.google.com/u/0/project/portfolio-gatsby/overview).
+5. **Add custom domain** in Firebase Console → Hosting
+
+**Multi-Site Setup:**
+Firebase supports hosting multiple sites in one project. See `DEPLOYMENT.md` for detailed multi-site configuration.
+
+### Other Options
+
+- **Netlify** - Similar to Vercel, great GitHub integration
+- **Cloudflare Pages** - Fast CDN, free tier available
+- **Self-hosted** - Deploy to your own server with Nginx
+
+### Post-Deployment
+
+**Update Supabase Auth Settings:**
+
+1. Go to Supabase Dashboard → Authentication → URL Configuration
+2. Add your production URL to:
+   - **Redirect URLs**: `https://your-domain.com/**`
+   - **Site URL**: `https://your-domain.com`
+
+**See `DEPLOYMENT.md`** for comprehensive deployment guides, architecture details, and troubleshooting.
 
 ## Logging In
 

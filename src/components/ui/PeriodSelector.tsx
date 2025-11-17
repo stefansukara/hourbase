@@ -22,7 +22,7 @@ interface PeriodSelectorProps {
 
 const getPeriodDates = (period: PeriodType): { start: string; end: string } => {
   const today = new Date();
-  const end = new Date(today);
+  let end = new Date(today);
   end.setHours(23, 59, 59, 999);
 
   let start = new Date();
@@ -85,7 +85,13 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
   ];
 
   useEffect(() => {
-    if (period !== 'custom' && onStartDateChange && onEndDateChange && !startDate && !endDate) {
+    if (
+      period !== 'custom' &&
+      onStartDateChange &&
+      onEndDateChange &&
+      !startDate &&
+      !endDate
+    ) {
       const dates = getPeriodDates(period);
       onStartDateChange(dates.start);
       onEndDateChange(dates.end);
@@ -133,4 +139,3 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
     </div>
   );
 };
-

@@ -1,7 +1,22 @@
 {
   "name": "hourbase",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Self-hosted, open-source hour tracking for developers and freelancers",
+  "author": "Stefan Sukara",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stefansukara/hourbase.git"
+  },
+  "keywords": [
+    "time-tracking",
+    "hour-tracking",
+    "freelance",
+    "react",
+    "typescript",
+    "supabase",
+    "vite"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

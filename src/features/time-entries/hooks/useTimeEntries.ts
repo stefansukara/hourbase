@@ -71,7 +71,7 @@ const updateTimeEntry = async (
   return data as TimeEntryWithProject;
 };
 
-const deleteTimeEntry = async (id: string, entryDate: string): Promise<void> => {
+const deleteTimeEntry = async (id: string): Promise<void> => {
   const { error } = await supabase.from('time_entries').delete().eq('id', id);
   if (error) {
     throw error;
@@ -115,7 +115,7 @@ export const useDeleteTimeEntryMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation<void, PostgrestError, { id: string; entryDate: string }>({
-    mutationFn: ({ id, entryDate }) => deleteTimeEntry(id, entryDate),
+    mutationFn: ({ id }) => deleteTimeEntry(id),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: [...TIME_ENTRIES_QUERY_KEY, variables.entryDate],

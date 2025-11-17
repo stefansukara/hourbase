@@ -25,3 +25,12 @@ dist-ssr
 
 # Environment files
 .env
+.env.local
+.env.production
+.env.*.local
+
+# Firebase
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
