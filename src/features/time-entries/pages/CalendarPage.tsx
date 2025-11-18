@@ -171,7 +171,7 @@ export const CalendarPage: React.FC = () => {
           </Button>
         </div>
         <div className="w-full sm:w-auto">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => navigateDate('prev')}
@@ -180,7 +180,7 @@ export const CalendarPage: React.FC = () => {
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
-            <div className="flex-1 sm:flex-initial sm:w-[200px]">
+            <div className="basis-full sm:basis-auto flex-1 min-w-0 sm:flex-initial w-full sm:w-[220px]">
               <DatePicker value={selectedDate} onChange={setSelectedDate} />
             </div>
             <button

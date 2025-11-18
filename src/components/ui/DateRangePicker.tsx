@@ -165,7 +165,7 @@ export const DateRangePicker = ({
             aria-hidden="true"
           />
 
-          <div className="fixed inset-x-4 top-20 bottom-auto sm:absolute sm:left-0 sm:right-auto sm:top-full sm:inset-x-auto sm:mt-2 sm:w-80 max-h-[calc(100vh-6rem)] sm:max-h-[600px] overflow-y-auto bg-white rounded-xl shadow-lg border border-slate-200 z-50">
+          <div className="fixed inset-x-4 bottom-5 top-auto sm:absolute sm:left-0 sm:right-auto sm:top-full sm:inset-x-auto sm:mt-2 sm:w-80 max-h-[calc(100vh-5rem)] sm:max-h-[600px] overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 z-50 sm:rounded-xl sm:shadow-lg">
             <div className="p-4 sm:p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-900">
