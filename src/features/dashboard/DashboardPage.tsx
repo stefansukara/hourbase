@@ -1,14 +1,37 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ClockIcon,
   CurrencyDollarIcon,
   BriefcaseIcon,
   ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip as ChartTooltip,
+  Filler,
+  type ChartOptions,
+  type TooltipItem,
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
 import { Card } from '../../components/ui/Card';
 import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { useProjectsQuery } from '../projects/hooks/useProjects';
 import { useDashboardData } from './hooks/useDashboard';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  ChartTooltip,
+  Filler,
+);
 
 const getMonthDates = () => {
   const today = new Date();
@@ -22,18 +45,116 @@ const getMonthDates = () => {
   };
 };
 
+const CHART_COLORS = {
+  earnings: {
+    primary: 'rgba(99, 102, 241, 0.9)',
+    hover: 'rgba(99, 102, 241, 1)',
+    gradient: 'rgba(99, 102, 241, 0.15)',
+  },
+  hours: {
+    primary: 'rgba(16, 185, 129, 0.9)',
+    hover: 'rgba(16, 185, 129, 1)',
+    gradient: 'rgba(16, 185, 129, 0.15)',
+  },
+  line: {
+    border: 'rgba(139, 92, 246, 1)',
+    fill: 'rgba(139, 92, 246, 0.1)',
+    point: 'rgba(139, 92, 246, 1)',
+    pointHover: 'rgba(139, 92, 246, 0.8)',
+  },
+};
+
+const formatCurrencyValue = (amount: number, currency: string = 'USD') => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const createBarOptions = (
+  formatLabel: (value: number) => string,
+): ChartOptions<'bar'> => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#0f172a',
+      titleColor: '#fff',
+      bodyColor: '#e2e8f0',
+      borderColor: 'transparent',
+      padding: 12,
+      displayColors: false,
+      callbacks: {
+        label: (context: TooltipItem<'bar'>) => {
+          const prefix = context.dataset?.label ? `${context.dataset.label}: ` : '';
+          return `${prefix}${formatLabel(Number(context.raw ?? 0))}`;
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: '#475569', font: { size: 11 } },
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: '#e2e8f0' },
+      ticks: { color: '#475569', font: { size: 12 } },
+    },
+  },
+});
+
+const createLineOptions = (
+  formatLabel: (value: number) => string,
+): ChartOptions<'line'> => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#0f172a',
+      titleColor: '#fff',
+      bodyColor: '#e2e8f0',
+      borderColor: 'transparent',
+      padding: 12,
+      displayColors: false,
+      callbacks: {
+        label: (context: TooltipItem<'line'>) => {
+          const prefix = context.dataset?.label ? `${context.dataset.label}: ` : '';
+          return `${prefix}${formatLabel(Number(context.raw ?? 0))}`;
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: '#475569', font: { size: 12 } },
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: '#e2e8f0' },
+      ticks: { color: '#475569', font: { size: 12 } },
+    },
+  },
+});
+
 export const DashboardPage: React.FC = () => {
   const { data: projects = [] } = useProjectsQuery();
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-
-  useEffect(() => {
-    if (!startDate && !endDate) {
-      const dates = getMonthDates();
-      setStartDate(dates.start);
-      setEndDate(dates.end);
-    }
-  }, [startDate, endDate]);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const dates = getMonthDates();
+    return dates.start;
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    const dates = getMonthDates();
+    return dates.end;
+  });
 
   const handleDateChange = (start: string, end: string) => {
     setStartDate(start);
@@ -49,14 +170,141 @@ export const DashboardPage: React.FC = () => {
     return projects.filter((p) => !p.archived).length;
   }, [projects]);
 
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+  const earningsByProject = useMemo(() => {
+    const projectMap = new Map<
+      string,
+      { name: string; earnings: number; hours: number }
+    >();
+
+    timeEntries.forEach((entry) => {
+      const projectName = entry.project?.name ?? 'Unknown project';
+      const hours = Number(entry.hours ?? 0);
+      const rate = Number(entry.project?.hourly_rate ?? 0);
+      const earnings = hours * rate;
+
+      if (projectMap.has(projectName)) {
+        const existing = projectMap.get(projectName)!;
+        existing.earnings += earnings;
+        existing.hours += hours;
+      } else {
+        projectMap.set(projectName, { name: projectName, earnings, hours });
+      }
+    });
+
+    return Array.from(projectMap.values())
+      .sort((a, b) => b.earnings - a.earnings)
+      .slice(0, 10);
+  }, [timeEntries]);
+
+  const dailyEarnings = useMemo(() => {
+    const dayMap = new Map<string, number>();
+
+    timeEntries.forEach((entry) => {
+      const date = entry.entry_date;
+      const hours = Number(entry.hours ?? 0);
+      const rate = Number(entry.project?.hourly_rate ?? 0);
+      const earnings = hours * rate;
+
+      if (dayMap.has(date)) {
+        dayMap.set(date, dayMap.get(date)! + earnings);
+      } else {
+        dayMap.set(date, earnings);
+      }
+    });
+
+    return Array.from(dayMap.entries())
+      .map(([date, earnings]) => ({
+        dateKey: date,
+        date: new Date(date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        earnings: Number(earnings.toFixed(2)),
+      }))
+      .sort((a, b) => {
+        return a.dateKey.localeCompare(b.dateKey);
+      });
+  }, [timeEntries]);
+
+  const earningsBarData = useMemo(
+    () => ({
+      labels: earningsByProject.map((item) => item.name),
+      datasets: [
+        {
+          label: 'Earnings',
+          data: earningsByProject.map((item) => Number(item.earnings.toFixed(2))),
+          backgroundColor: CHART_COLORS.earnings.primary,
+          borderColor: CHART_COLORS.earnings.hover,
+          borderWidth: 0,
+          borderRadius: 12,
+          borderSkipped: false,
+          hoverBackgroundColor: CHART_COLORS.earnings.hover,
+          hoverBorderColor: CHART_COLORS.earnings.hover,
+        },
+      ],
+    }),
+    [earningsByProject],
+  );
+
+  const hoursBarData = useMemo(
+    () => ({
+      labels: earningsByProject.map((item) => item.name),
+      datasets: [
+        {
+          label: 'Hours',
+          data: earningsByProject.map((item) => Number(item.hours.toFixed(1))),
+          backgroundColor: CHART_COLORS.hours.primary,
+          borderColor: CHART_COLORS.hours.hover,
+          borderWidth: 0,
+          borderRadius: 12,
+          borderSkipped: false,
+          hoverBackgroundColor: CHART_COLORS.hours.hover,
+          hoverBorderColor: CHART_COLORS.hours.hover,
+        },
+      ],
+    }),
+    [earningsByProject],
+  );
+
+  const dailyLineData = useMemo(
+    () => ({
+      labels: dailyEarnings.map((entry) => entry.date),
+      datasets: [
+        {
+          label: 'Daily earnings',
+          data: dailyEarnings.map((entry) => entry.earnings),
+          borderColor: CHART_COLORS.line.border,
+          backgroundColor: CHART_COLORS.line.fill,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: CHART_COLORS.line.point,
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2.5,
+          pointHoverBackgroundColor: CHART_COLORS.line.pointHover,
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 2.5,
+        },
+      ],
+    }),
+    [dailyEarnings],
+  );
+
+  const earningsBarOptions = useMemo(
+    () => createBarOptions((value) => formatCurrencyValue(value)),
+    [],
+  );
+
+  const hoursBarOptions = useMemo(
+    () => createBarOptions((value) => `${value.toFixed(1)}h`),
+    [],
+  );
+
+  const dailyLineOptions = useMemo(
+    () => createLineOptions((value) => formatCurrencyValue(value)),
+    [],
+  );
 
   const metrics = [
     {
@@ -67,7 +315,7 @@ export const DashboardPage: React.FC = () => {
     },
     {
       label: 'Billable amount',
-      value: formatCurrency(billableAmount),
+      value: formatCurrencyValue(billableAmount),
       icon: <CurrencyDollarIcon className="h-6 w-6" />,
       color: 'bg-emerald-500',
     },
@@ -118,6 +366,42 @@ export const DashboardPage: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      {!isLoading && timeEntries.length > 0 && (
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+          <Card title="Earnings by project" variant="flat">
+            {earningsByProject.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <p className="text-sm text-slate-500">No earnings data available</p>
+              </div>
+            ) : (
+              <div className="h-72">
+                <Bar data={earningsBarData} options={earningsBarOptions} />
+              </div>
+            )}
+          </Card>
+
+          <Card title="Hours by project" variant="flat">
+            {earningsByProject.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <p className="text-sm text-slate-500">No hours data available</p>
+              </div>
+            ) : (
+              <div className="h-72">
+                <Bar data={hoursBarData} options={hoursBarOptions} />
+              </div>
+            )}
+          </Card>
+
+          {dailyEarnings.length > 0 && (
+            <Card title="Daily earnings" variant="flat" className="lg:col-span-2">
+              <div className="h-72">
+                <Line data={dailyLineData} options={dailyLineOptions} />
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
 
       <Card title="Time entries">
         {isLoading ? (

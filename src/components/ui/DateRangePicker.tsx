@@ -19,11 +19,12 @@ export const DateRangePicker = ({
   minDate,
 }: DateRangePickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [tempStartDate, setTempStartDate] = useState(startDate);
-  const [tempEndDate, setTempEndDate] = useState(endDate);
+  const [tempStartDate, setTempStartDate] = useState(() => startDate);
+  const [tempEndDate, setTempEndDate] = useState(() => endDate);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const prevStartDateRef = useRef(startDate);
+  const prevEndDateRef = useRef(endDate);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -37,11 +38,16 @@ export const DateRangePicker = ({
     };
   }, []);
 
-  // Update temp dates when props change
   useEffect(() => {
-    setTempStartDate(startDate);
-    setTempEndDate(endDate);
-  }, [startDate, endDate]);
+    if (prevStartDateRef.current !== startDate || prevEndDateRef.current !== endDate) {
+      prevStartDateRef.current = startDate;
+      prevEndDateRef.current = endDate;
+      if (!isOpen) {
+        setTempStartDate(startDate);
+        setTempEndDate(endDate);
+      }
+    }
+  }, [startDate, endDate, isOpen]);
 
   const handleApply = () => {
     onDateChange(tempStartDate, tempEndDate);
@@ -138,7 +144,13 @@ export const DateRangePicker = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) {
+            setTempStartDate(startDate);
+            setTempEndDate(endDate);
+          }
+          setIsOpen(!isOpen);
+        }}
         className="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2.5 border border-slate-300 shadow-sm text-xs sm:text-sm leading-4 font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 w-full sm:w-auto"
       >
         <CalendarIcon className="h-4 w-4 mr-1.5 sm:mr-2 shrink-0" />
@@ -147,18 +159,18 @@ export const DateRangePicker = ({
 
       {isOpen && (
         <>
-          {/* Mobile backdrop */}
           <div
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 sm:hidden"
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          
-          {/* Dropdown */}
+
           <div className="fixed inset-x-4 top-20 bottom-auto sm:absolute sm:left-0 sm:right-auto sm:top-full sm:inset-x-auto sm:mt-2 sm:w-80 max-h-[calc(100vh-6rem)] sm:max-h-[600px] overflow-y-auto bg-white rounded-xl shadow-lg border border-slate-200 z-50">
             <div className="p-4 sm:p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900">Select date range</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900">
+                  Select date range
+                </h3>
                 <button
                   onClick={() => setIsOpen(false)}
                   className="text-slate-400 hover:text-slate-600 transition-colors p-1"
@@ -168,9 +180,10 @@ export const DateRangePicker = ({
                 </button>
               </div>
 
-              {/* Quick Date Ranges */}
               <div className="mb-4">
-                <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2">Quick ranges</p>
+                <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2">
+                  Quick ranges
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {getQuickDateRanges().map((range) => (
                     <button
@@ -187,9 +200,10 @@ export const DateRangePicker = ({
                 </div>
               </div>
 
-              {/* Custom Date Range */}
               <div className="mb-4">
-                <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2">Custom range</p>
+                <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2">
+                  Custom range
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
@@ -220,7 +234,6 @@ export const DateRangePicker = ({
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
                 <button
                   onClick={handleClear}
