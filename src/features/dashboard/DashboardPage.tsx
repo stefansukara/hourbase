@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ClockIcon,
   CurrencyDollarIcon,
   BriefcaseIcon,
   ClipboardDocumentIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import {
   Chart as ChartJS,
@@ -19,9 +23,21 @@ import {
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Drawer } from '../../components/ui/Drawer';
 import { DateRangePicker } from '../../components/ui/DateRangePicker';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { TimeEntryForm } from '../time-entries/components/TimeEntryForm';
 import { useProjectsQuery } from '../projects/hooks/useProjects';
+import {
+  useCreateTimeEntryMutation,
+  useUpdateTimeEntryMutation,
+  useDeleteTimeEntryMutation,
+} from '../time-entries/hooks/useTimeEntries';
+import { useAuth } from '../auth/hooks/useAuth';
+import { useToast } from '../../contexts/ToastContext';
 import { useDashboardData } from './hooks/useDashboard';
+import type { TimeEntryWithProject } from '../../lib/types';
 
 ChartJS.register(
   CategoryScale,
@@ -146,7 +162,16 @@ const createLineOptions = (
 });
 
 export const DashboardPage: React.FC = () => {
-  const { data: projects = [] } = useProjectsQuery();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const { data: projects = [], isLoading: projectsLoading } = useProjectsQuery();
+  const createEntry = useCreateTimeEntryMutation();
+  const updateEntry = useUpdateTimeEntryMutation();
+  const deleteEntry = useDeleteTimeEntryMutation();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TimeEntryWithProject | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<TimeEntryWithProject | null>(null);
+
   const [startDate, setStartDate] = useState<string>(() => {
     const dates = getMonthDates();
     return dates.start;
@@ -159,6 +184,84 @@ export const DashboardPage: React.FC = () => {
   const handleDateChange = (start: string, end: string) => {
     setStartDate(start);
     setEndDate(end);
+  };
+
+  const handleCreateEntry = async (values: {
+    entryDate: string;
+    projectId: string;
+    hours: number;
+    notes: string;
+  }) => {
+    if (!user) {
+      showToast('Please sign in to log time.', 'error');
+      return;
+    }
+
+    try {
+      await createEntry.mutateAsync({
+        entry_date: values.entryDate,
+        project_id: values.projectId,
+        hours: values.hours,
+        notes: values.notes,
+        user_id: user.id,
+      });
+      showToast('Time entry logged successfully!', 'success');
+      setIsDrawerOpen(false);
+    } catch (mutationError) {
+      showToast(
+        mutationError instanceof Error ? mutationError.message : 'Failed to log hours',
+        'error',
+      );
+    }
+  };
+
+  const handleUpdateEntry = async (values: {
+    entryDate: string;
+    projectId: string;
+    hours: number;
+    notes: string;
+  }) => {
+    if (!editingEntry) return;
+
+    try {
+      await updateEntry.mutateAsync({
+        id: editingEntry.id,
+        entry_date: values.entryDate,
+        project_id: values.projectId,
+        hours: values.hours,
+        notes: values.notes,
+      });
+      showToast('Time entry updated successfully!', 'success');
+      setEditingEntry(null);
+      setIsDrawerOpen(false);
+    } catch (mutationError) {
+      showToast(
+        mutationError instanceof Error ? mutationError.message : 'Failed to update entry',
+        'error',
+      );
+    }
+  };
+
+  const handleDeleteClick = (entry: TimeEntryWithProject) => {
+    setEntryToDelete(entry);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!entryToDelete) return;
+
+    try {
+      await deleteEntry.mutateAsync({
+        id: entryToDelete.id,
+        entryDate: entryToDelete.entry_date,
+      });
+      showToast('Time entry deleted successfully!', 'success');
+      setEntryToDelete(null);
+    } catch (mutationError) {
+      showToast(
+        mutationError instanceof Error ? mutationError.message : 'Failed to delete entry',
+        'error',
+      );
+    }
   };
 
   const { timeEntries, hoursThisWeek, billableAmount, isLoading } = useDashboardData(
@@ -329,19 +432,30 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Welcome back!</h1>
           <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">
             Overview of your time tracking and project activity.
           </p>
         </div>
-        <div className="w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           <DateRangePicker
             startDate={startDate}
             endDate={endDate}
             onDateChange={handleDateChange}
           />
+          <Button
+            onClick={() => {
+              setEditingEntry(null);
+              setIsDrawerOpen(true);
+            }}
+            disabled={!user || !projects.length}
+            className="w-full sm:w-auto whitespace-nowrap"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Log time
+          </Button>
         </div>
       </div>
 
@@ -444,19 +558,92 @@ export const DashboardPage: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <div className="text-left sm:text-right shrink-0">
-                  <p className="text-xs sm:text-sm font-semibold text-emerald-600">
-                    {entry.project?.currency ?? 'USD'}{' '}
-                    {(
-                      Number(entry.hours ?? 0) * Number(entry.project?.hourly_rate ?? 0)
-                    ).toFixed(2)}
-                  </p>
+                <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs sm:text-sm font-semibold text-emerald-600">
+                      {entry.project?.currency ?? 'USD'}{' '}
+                      {(
+                        Number(entry.hours ?? 0) * Number(entry.project?.hourly_rate ?? 0)
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        setEditingEntry(entry);
+                        setIsDrawerOpen(true);
+                      }}
+                      disabled={deleteEntry.isPending}
+                      title="Edit entry"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      onClick={() => handleDeleteClick(entry)}
+                      disabled={deleteEntry.isPending}
+                      title="Delete entry"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </Card>
+
+      <Drawer
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingEntry(null);
+        }}
+        title={editingEntry ? 'Edit time entry' : 'Log time'}
+      >
+        {!projects.length && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 flex items-center justify-between">
+            <span>Create a project first to log hours.</span>
+            <Link
+              to="/projects"
+              className="text-amber-800 underline hover:text-amber-900 font-medium"
+              onClick={() => setIsDrawerOpen(false)}
+            >
+              Create Project
+            </Link>
+          </div>
+        )}
+        <TimeEntryForm
+          defaultDate={new Date().toISOString().slice(0, 10)}
+          projects={projects}
+          entry={editingEntry}
+          onSubmit={editingEntry ? handleUpdateEntry : handleCreateEntry}
+          isSubmitting={editingEntry ? updateEntry.isPending : createEntry.isPending}
+          disabled={!user || projectsLoading}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingEntry(null);
+          }}
+        />
+      </Drawer>
+
+      <ConfirmationModal
+        isOpen={!!entryToDelete}
+        onClose={() => setEntryToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete time entry"
+        message="Are you sure you want to delete this time entry? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteEntry.isPending}
+      />
     </div>
   );
 };

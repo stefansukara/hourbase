@@ -21,22 +21,26 @@ export const DateRangePicker = ({
   const [isOpen, setIsOpen] = useState(false);
   const [tempStartDate, setTempStartDate] = useState(() => startDate);
   const [tempEndDate, setTempEndDate] = useState(() => endDate);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const prevStartDateRef = useRef(startDate);
   const prevEndDateRef = useRef(endDate);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, true);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
     };
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     if (prevStartDateRef.current !== startDate || prevEndDateRef.current !== endDate) {
@@ -143,11 +147,20 @@ export const DateRangePicker = ({
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (!isOpen) {
             setTempStartDate(startDate);
             setTempEndDate(endDate);
+            if (buttonRef.current) {
+              const rect = buttonRef.current.getBoundingClientRect();
+              setDropdownPosition({
+                top: rect.bottom + 8,
+                left: rect.left,
+              });
+            }
           }
           setIsOpen(!isOpen);
         }}
@@ -160,12 +173,22 @@ export const DateRangePicker = ({
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 sm:hidden"
-            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[90] sm:hidden"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
             aria-hidden="true"
           />
 
-          <div className="fixed inset-x-4 bottom-5 top-auto sm:absolute sm:left-0 sm:right-auto sm:top-full sm:inset-x-auto sm:mt-2 sm:w-80 max-h-[calc(100vh-5rem)] sm:max-h-[600px] overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 z-50 sm:rounded-xl sm:shadow-lg">
+          <div
+            className="fixed inset-x-4 bottom-5 top-auto sm:fixed sm:w-80 sm:inset-x-auto sm:bottom-auto max-h-[calc(100vh-5rem)] sm:max-h-[600px] overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 z-[100] sm:rounded-xl sm:shadow-lg"
+            style={{
+              top: window.innerWidth >= 640 ? `${dropdownPosition.top}px` : undefined,
+              left: window.innerWidth >= 640 ? `${dropdownPosition.left}px` : undefined,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 sm:p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-900">

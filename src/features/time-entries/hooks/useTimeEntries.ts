@@ -94,6 +94,7 @@ export const useCreateTimeEntryMutation = () => {
       queryClient.invalidateQueries({
         queryKey: [...TIME_ENTRIES_QUERY_KEY, data.entry_date],
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -107,6 +108,7 @@ export const useUpdateTimeEntryMutation = () => {
       queryClient.invalidateQueries({
         queryKey: [...TIME_ENTRIES_QUERY_KEY, data.entry_date],
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };
@@ -120,6 +122,7 @@ export const useDeleteTimeEntryMutation = () => {
       queryClient.invalidateQueries({
         queryKey: [...TIME_ENTRIES_QUERY_KEY, variables.entryDate],
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };

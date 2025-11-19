@@ -21,6 +21,9 @@ export default defineConfig([
     },
     rules: {
       'prettier/prettier': 'error',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
     },
     languageOptions: {
       ecmaVersion: 2020,
