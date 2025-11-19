@@ -571,7 +571,7 @@ export const DashboardPage: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0"
                       onClick={() => {
                         setEditingEntry(entry);
                         setIsDrawerOpen(true);
@@ -579,17 +579,17 @@ export const DashboardPage: React.FC = () => {
                       disabled={deleteEntry.isPending}
                       title="Edit entry"
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <PencilIcon className="h-5 w-5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      className="h-9 w-9 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                       onClick={() => handleDeleteClick(entry)}
                       disabled={deleteEntry.isPending}
                       title="Delete entry"
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>

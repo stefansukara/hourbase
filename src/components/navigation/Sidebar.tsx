@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { NAV_LINKS } from '../../lib/constants';
 import { Button } from '../ui/Button';
+import { ConfirmationModal } from '../ui/ConfirmationModal';
 
 const icons: Record<string, React.ReactNode> = {
   Dashboard: <HomeIcon className="h-5 w-5" />,
@@ -33,6 +34,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ signOut, userEmail }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -135,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ signOut, userEmail }) => {
             )}
             <Button
               variant="secondary"
-              onClick={signOut}
+              onClick={() => setShowLogoutConfirm(true)}
               size="sm"
               className="w-full justify-start"
             >
@@ -145,6 +147,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ signOut, userEmail }) => {
           </div>
         </div>
       </aside>
+
+      <ConfirmationModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          signOut();
+        }}
+        title="Sign out"
+        message="Are you sure you want to sign out? You'll need to sign in again to access your account."
+        confirmText="Sign out"
+        cancelText="Cancel"
+        variant="warning"
+      />
     </>
   );
 };
