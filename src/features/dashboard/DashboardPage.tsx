@@ -551,6 +551,7 @@ export const DashboardPage: React.FC = () => {
                     </p>
                     <p className="text-xs text-slate-500">
                       {new Date(entry.entry_date).toLocaleDateString(undefined, {
+                        weekday: 'short',
                         month: 'short',
                         day: 'numeric',
                       })}{' '}
