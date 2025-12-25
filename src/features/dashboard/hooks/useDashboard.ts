@@ -41,36 +41,9 @@ export const useDashboardData = (startDate?: string, endDate?: string) => {
     enabled: Boolean(start && end),
   });
 
-  const hoursThisWeek = timeEntries.reduce((total, entry) => {
-    return total + Number(entry.hours ?? 0);
-  }, 0);
-
-  const billableAmount = timeEntries.reduce((total, entry) => {
-    const hours = Number(entry.hours ?? 0);
-    const rate = Number(entry.project?.hourly_rate ?? 0);
-    return total + hours * rate;
-  }, 0);
-
-  const billableByCurrency = timeEntries.reduce((acc, entry) => {
-    const currency = entry.project?.currency ?? 'USD';
-    const hours = Number(entry.hours ?? 0);
-    const rate = Number(entry.project?.hourly_rate ?? 0);
-    const amount = hours * rate;
-    
-    if (!acc[currency]) {
-      acc[currency] = 0;
-    }
-    acc[currency] += amount;
-    return acc;
-  }, {} as Record<string, number>);
-
   return {
     timeEntries,
-    hoursThisWeek,
-    billableAmount,
-    billableByCurrency,
     isLoading,
     error,
   };
 };
-

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClockIcon,
@@ -8,6 +8,7 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import {
   Chart as ChartJS,
@@ -171,6 +172,7 @@ export const DashboardPage: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntryWithProject | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<TimeEntryWithProject | null>(null);
+  const [projectFilter, setProjectFilter] = useState('all');
 
   const [startDate, setStartDate] = useState<string>(() => {
     const dates = getMonthDates();
@@ -264,14 +266,76 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const { timeEntries, hoursThisWeek, billableAmount, isLoading } = useDashboardData(
-    startDate,
-    endDate,
-  );
+  const { timeEntries, isLoading } = useDashboardData(startDate, endDate);
 
-  const activeProjects = useMemo(() => {
-    return projects.filter((p) => !p.archived).length;
-  }, [projects]);
+  const projectFilterOptions = useMemo(() => {
+    const options = new Map<string, string>();
+
+    timeEntries.forEach((entry) => {
+      const id = entry.project?.id ?? 'unknown';
+      const name = entry.project?.name ?? 'Unknown project';
+      if (!options.has(id)) {
+        options.set(id, name);
+      }
+    });
+
+    return Array.from(options.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [timeEntries]);
+
+  useEffect(() => {
+    if (projectFilter === 'all') return;
+    const isValid = projectFilterOptions.some((option) => option.id === projectFilter);
+    if (!isValid) {
+      setProjectFilter('all');
+    }
+  }, [projectFilter, projectFilterOptions]);
+
+  const filteredTimeEntries = useMemo(() => {
+    if (projectFilter === 'all') return timeEntries;
+    return timeEntries.filter((entry) => {
+      const entryProjectId = entry.project?.id ?? 'unknown';
+      return entryProjectId === projectFilter;
+    });
+  }, [projectFilter, timeEntries]);
+
+  const selectedProjectLabel = useMemo(() => {
+    if (projectFilter === 'all') return 'All projects';
+    const match = projectFilterOptions.find((option) => option.id === projectFilter);
+    return match?.name ?? 'Unknown project';
+  }, [projectFilter, projectFilterOptions]);
+
+  const dateRangeLabel = useMemo(() => {
+    const formatDate = (value: string) =>
+      new Date(value).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  }, [startDate, endDate]);
+
+  const totalHours = useMemo(() => {
+    return filteredTimeEntries.reduce((total, entry) => {
+      return total + Number(entry.hours ?? 0);
+    }, 0);
+  }, [filteredTimeEntries]);
+
+  const totalBillable = useMemo(() => {
+    return filteredTimeEntries.reduce((total, entry) => {
+      const hours = Number(entry.hours ?? 0);
+      const rate = Number(entry.project?.hourly_rate ?? 0);
+      return total + hours * rate;
+    }, 0);
+  }, [filteredTimeEntries]);
+
+  const projectsTracked = useMemo(() => {
+    const projectIds = new Set<string>();
+    filteredTimeEntries.forEach((entry) => {
+      projectIds.add(entry.project?.id ?? 'unknown');
+    });
+    return projectIds.size;
+  }, [filteredTimeEntries]);
 
   const earningsByProject = useMemo(() => {
     const projectMap = new Map<
@@ -279,7 +343,7 @@ export const DashboardPage: React.FC = () => {
       { name: string; earnings: number; hours: number }
     >();
 
-    timeEntries.forEach((entry) => {
+    filteredTimeEntries.forEach((entry) => {
       const projectName = entry.project?.name ?? 'Unknown project';
       const hours = Number(entry.hours ?? 0);
       const rate = Number(entry.project?.hourly_rate ?? 0);
@@ -297,12 +361,12 @@ export const DashboardPage: React.FC = () => {
     return Array.from(projectMap.values())
       .sort((a, b) => b.earnings - a.earnings)
       .slice(0, 10);
-  }, [timeEntries]);
+  }, [filteredTimeEntries]);
 
   const dailyEarnings = useMemo(() => {
     const dayMap = new Map<string, number>();
 
-    timeEntries.forEach((entry) => {
+    filteredTimeEntries.forEach((entry) => {
       const date = entry.entry_date;
       const hours = Number(entry.hours ?? 0);
       const rate = Number(entry.project?.hourly_rate ?? 0);
@@ -327,7 +391,7 @@ export const DashboardPage: React.FC = () => {
       .sort((a, b) => {
         return a.dateKey.localeCompare(b.dateKey);
       });
-  }, [timeEntries]);
+  }, [filteredTimeEntries]);
 
   const earningsBarData = useMemo(
     () => ({
@@ -412,19 +476,19 @@ export const DashboardPage: React.FC = () => {
   const metrics = [
     {
       label: 'Total hours',
-      value: `${hoursThisWeek.toFixed(1)}h`,
+      value: `${totalHours.toFixed(1)}h`,
       icon: <ClockIcon className="h-6 w-6" />,
       color: 'bg-blue-500',
     },
     {
       label: 'Billable amount',
-      value: formatCurrencyValue(billableAmount),
+      value: formatCurrencyValue(totalBillable),
       icon: <CurrencyDollarIcon className="h-6 w-6" />,
       color: 'bg-emerald-500',
     },
     {
-      label: 'Active projects',
-      value: activeProjects.toString(),
+      label: 'Projects tracked',
+      value: projectsTracked.toString(),
       icon: <BriefcaseIcon className="h-6 w-6" />,
       color: 'bg-purple-500',
     },
@@ -440,11 +504,6 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <DateRangePicker
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
           <Button
             onClick={() => {
               setEditingEntry(null);
@@ -456,6 +515,54 @@ export const DashboardPage: React.FC = () => {
             <PlusIcon className="mr-2 h-4 w-4" />
             Log time
           </Button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Filters
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                {selectedProjectLabel}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onDateChange={handleDateChange}
+              />
+              <div className="relative w-full sm:w-auto">
+                <select
+                  id="project-filter"
+                  aria-label="Project filter"
+                  className="w-full min-w-[180px] appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-xs font-medium text-slate-700 shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:px-4 sm:py-2.5 sm:text-sm"
+                  value={projectFilter}
+                  onChange={(event) => setProjectFilter(event.target.value)}
+                  disabled={isLoading || projectFilterOptions.length === 0}
+                >
+                  <option value="all">All projects</option>
+                  {projectFilterOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+              Date: {dateRangeLabel}
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+              Project: {selectedProjectLabel}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -517,87 +624,115 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      <Card title="Time entries">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
-              <p className="mt-4 text-sm text-slate-500">Loading entries...</p>
-            </div>
-          </div>
-        ) : timeEntries.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <ClipboardDocumentIcon className="mx-auto h-12 w-12 text-slate-300" />
-              <p className="mt-4 text-sm text-slate-500">
-                No time entries for the selected date range.
+      <Card>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Time entries</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                {isLoading
+                  ? 'Loading entries...'
+                  : timeEntries.length === 0
+                    ? 'No entries in this date range yet.'
+                    : `Showing ${filteredTimeEntries.length} of ${timeEntries.length} entries`}
               </p>
             </div>
           </div>
-        ) : (
-          <div className="space-y-2 sm:space-y-3">
-            {timeEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 rounded-lg border border-slate-200 bg-slate-50 p-3"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-xs font-bold text-white">
-                    {entry.project?.name?.charAt(0).toUpperCase() ?? '?'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
-                      {entry.project?.name ?? 'Unknown project'}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {new Date(entry.entry_date).toLocaleDateString(undefined, {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })}{' '}
-                      · {entry.hours}h
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs sm:text-sm font-semibold text-emerald-600">
-                      {entry.project?.currency ?? 'USD'}{' '}
-                      {(
-                        Number(entry.hours ?? 0) * Number(entry.project?.hourly_rate ?? 0)
-                      ).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      onClick={() => {
-                        setEditingEntry(entry);
-                        setIsDrawerOpen(true);
-                      }}
-                      disabled={deleteEntry.isPending}
-                      title="Edit entry"
-                    >
-                      <PencilIcon className="h-5 w-5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      onClick={() => handleDeleteClick(entry)}
-                      disabled={deleteEntry.isPending}
-                      title="Delete entry"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+                <p className="mt-4 text-sm text-slate-500">Loading entries...</p>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ) : timeEntries.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <ClipboardDocumentIcon className="mx-auto h-12 w-12 text-slate-300" />
+                <p className="mt-4 text-sm text-slate-500">
+                  No time entries for the selected date range.
+                </p>
+              </div>
+            </div>
+          ) : filteredTimeEntries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+              <ClipboardDocumentIcon className="h-12 w-12 text-slate-300" />
+              <div>
+                <p className="text-sm text-slate-500">
+                  No time entries match this project yet.
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Try a different project or clear the filter.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 sm:space-y-3">
+              {filteredTimeEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 rounded-lg border border-slate-200 bg-slate-50 p-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-xs font-bold text-white">
+                      {entry.project?.name?.charAt(0).toUpperCase() ?? '?'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
+                        {entry.project?.name ?? 'Unknown project'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(entry.entry_date).toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })}{' '}
+                        · {entry.hours}h
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                    <div className="text-left sm:text-right">
+                      <p className="text-xs sm:text-sm font-semibold text-emerald-600">
+                        {entry.project?.currency ?? 'USD'}{' '}
+                        {(
+                          Number(entry.hours ?? 0) *
+                          Number(entry.project?.hourly_rate ?? 0)
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0"
+                        onClick={() => {
+                          setEditingEntry(entry);
+                          setIsDrawerOpen(true);
+                        }}
+                        disabled={deleteEntry.isPending}
+                        title="Edit entry"
+                      >
+                        <PencilIcon className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        onClick={() => handleDeleteClick(entry)}
+                        disabled={deleteEntry.isPending}
+                        title="Delete entry"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </Card>
 
       <Drawer
